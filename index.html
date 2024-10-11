@@ -48,7 +48,24 @@
         const repoName = 'keyxyz';
         const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${fileName}`;
 
-        const response = await fetch(url, {
+        // Paso 1: Obtener el SHA del archivo existente
+        const getFileResponse = await fetch(url, {
+            headers: {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        let sha = null;
+        if (getFileResponse.ok) {
+            const fileData = await getFileResponse.json();
+            sha = fileData.sha;  // Obtener el SHA
+        } else {
+            console.error('Error al obtener el archivo:', await getFileResponse.json());
+        }
+
+        // Paso 2: Subir el archivo con el SHA
+        const uploadResponse = await fetch(url, {
             method: 'PUT',
             headers: {
                 'Authorization': `token ${token}`,
@@ -56,14 +73,15 @@
             },
             body: JSON.stringify({
                 message: `Subir archivo ${fileName}`,
-                content: btoa(unescape(encodeURIComponent(jsonContent)))
+                content: btoa(unescape(encodeURIComponent(jsonContent))),
+                sha: sha // Incluir el SHA
             })
         });
 
-        if (response.ok) {
+        if (uploadResponse.ok) {
             alert('Archivo subido exitosamente!');
         } else {
-            const errorData = await response.json();
+            const errorData = await uploadResponse.json();
             alert(`Error: ${errorData.message}`);
         }
     });
