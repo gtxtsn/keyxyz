@@ -49,6 +49,81 @@
     <div id="decryptedContent"></div>
 
     <script>
+async function makeGithubRequest(endpoint, method, body = null) {
+    const baseUrl = 'https://api.github.com';
+    const url = `${baseUrl}${endpoint}`;
+    const headers = {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+    };
+    const options = {
+        method: method,
+        headers: headers,
+        mode: 'cors'
+    };
+    if (body) {
+        options.body = JSON.stringify(body);
+        headers['Content-Type'] = 'application/json';
+    }
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+}
+
+// Ejemplo de uso:
+async function uploadToGithub() {
+    const content = document.getElementById('content').value.trim();
+    let filePath = document.getElementById('filePath').value.trim();
+    const tokenPassword = document.getElementById('tokenPassword').value;
+    const statusElement = document.getElementById('status');
+
+    if (!content || !filePath || !tokenPassword) {
+        statusElement.textContent = 'Por favor, completa todos los campos';
+        return;
+    }
+
+    let token;
+    try {
+        token = decryptToken(encryptedToken, tokenPassword);
+    } catch (error) {
+        statusElement.textContent = error.message;
+        return;
+    }
+
+    if (!filePath.endsWith('.json')) {
+        filePath += '.json';
+    }
+
+    const endpoint = `/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+    try {
+        const data = {
+            message: 'Subir información encriptada',
+            content: btoa(JSON.stringify({ content: content }))
+        };
+        const response = await makeGithubRequest(endpoint, 'PUT', data);
+        statusElement.textContent = 'Archivo subido exitosamente a GitHub';
+    } catch (error) {
+        statusElement.textContent = `Error: ${error.message}`;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
         const repoOwner = 'gtxtsn';
         const repoName = 'keyxyz';
         const encryptedToken = 'U2FsdGVkX1+eAxwNDYYlBTyT1C48N51BwHvRkBtc+CE49jFvR0BToBJeqXshLn12qeJQmwaNn0+PQr5E6fvLfA==';
