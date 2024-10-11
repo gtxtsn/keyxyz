@@ -1,11 +1,218 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<!DOCTYPE html><html lang="es"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hola Mundo</title>
+    <title>Gestionar Información Encriptada en GitHub</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        textarea, input[type="text"], input[type="password"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        textarea {
+            height: 100px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status, #rawContent, #decryptedContent {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Hola Mundo</h1>
-</body>
-</html>
+    <h1>Gestionar Información Encriptada en GitHub</h1>
+    <textarea id="content" placeholder="Ingresa tu información encriptada aquí"></textarea>
+    <input type="text" id="filePath" placeholder="Nombre del archivo (sin extensión)">
+    <input type="password" id="tokenPassword" placeholder="Contraseña para desencriptar el token">
+    <input type="password" id="password" placeholder="Contraseña para desencriptar el contenido">
+    <button onclick="uploadToGithub()">Subir a GitHub</button>
+    <button onclick="getFileContent()">Recuperar contenido</button>
+    <button onclick="decryptContent()">Desencriptar contenido</button>
+    <div id="status"></div>
+    <div id="rawContent"></div>
+    <div id="decryptedContent"></div>
+
+    <script>
+        const repoOwner = 'gtxtsn';
+        const repoName = 'keyxyz';
+        const encryptedToken = 'U2FsdGVkX1+eAxwNDYYlBTyT1C48N51BwHvRkBtc+CE49jFvR0BToBJeqXshLn12qeJQmwaNn0+PQr5E6fvLfA==';
+
+        function decryptToken(encryptedToken, password) {
+            try {
+                const decrypted = CryptoJS.AES.decrypt(encryptedToken, password).toString(CryptoJS.enc.Utf8);
+                if (decrypted) {
+                    return decrypted;
+                } else {
+                    throw new Error('Desencriptación del token fallida');
+                }
+            } catch (error) {
+                throw new Error('Error al desencriptar el token: Contraseña incorrecta');
+            }
+        }
+
+        async function checkFileExists(url, token) {
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                    }
+                });
+                return response.ok;
+            } catch (error) {
+                console.error('Error al verificar el archivo:', error);
+                return false;
+            }
+        }
+
+        async function uploadToGithub() {
+            const content = document.getElementById('content').value.trim();
+            let filePath = document.getElementById('filePath').value.trim();
+            const tokenPassword = document.getElementById('tokenPassword').value;
+            const statusElement = document.getElementById('status');
+
+            if (!content || !filePath || !tokenPassword) {
+                statusElement.textContent = 'Por favor, completa todos los campos';
+                return;
+            }
+
+            let token;
+            try {
+                token = decryptToken(encryptedToken, tokenPassword);
+            } catch (error) {
+                statusElement.textContent = error.message;
+                return;
+            }
+
+            if (!filePath.endsWith('.json')) {
+                filePath += '.json';
+            }
+
+            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+            const fileExists = await checkFileExists(url, token);
+
+            if (fileExists) {
+                statusElement.textContent = 'El archivo ya existe. No se realizará ninguna acción.';
+                return;
+            }
+
+            const data = {
+                message: 'Subir información encriptada',
+                content: btoa(JSON.stringify({ content: content }))
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    statusElement.textContent = 'Archivo subido exitosamente a GitHub';
+                } else {
+                    const errorData = await response.json();
+                    statusElement.textContent = `Error al subir: ${errorData.message}`;
+                }
+            } catch (error) {
+                statusElement.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function getFileContent() {
+            let filePath = document.getElementById('filePath').value.trim();
+            const tokenPassword = document.getElementById('tokenPassword').value;
+            const statusElement = document.getElementById('status');
+            const contentElement = document.getElementById('content');
+            const rawContentElement = document.getElementById('rawContent');
+
+            if (!filePath || !tokenPassword) {
+                statusElement.textContent = 'Por favor, ingresa el nombre del archivo y la contraseña del token';
+                return;
+            }
+
+            let token;
+            try {
+                token = decryptToken(encryptedToken, tokenPassword);
+            } catch (error) {
+                statusElement.textContent = error.message;
+                return;
+            }
+
+            if (!filePath.endsWith('.json')) {
+                filePath += '.json';
+            }
+
+            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const content = JSON.parse(atob(data.content)).content;
+                    contentElement.value = content;
+                    rawContentElement.textContent = `Contenido encriptado recuperado: ${content}`;
+                    statusElement.textContent = 'Contenido recuperado exitosamente';
+                } else {
+                    const errorData = await response.json();
+                    statusElement.textContent = `Error al recuperar: ${errorData.message}`;
+                }
+            } catch (error) {
+                statusElement.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function decryptContent() {
+            const content = document.getElementById('content').value.trim();
+            const password = document.getElementById('password').value;
+            const statusElement = document.getElementById('status');
+            const decryptedContentElement = document.getElementById('decryptedContent');
+
+            if (!content || !password) {
+                statusElement.textContent = 'Por favor, asegúrate de que haya contenido para desencriptar y que hayas ingresado una contraseña';
+                return;
+            }
+
+            try {
+                const decrypted = CryptoJS.AES.decrypt(content, password).toString(CryptoJS.enc.Utf8);
+                if (decrypted) {
+                    decryptedContentElement.textContent = `Contenido desencriptado: ${decrypted}`;
+                    statusElement.textContent = 'Contenido desencriptado exitosamente';
+                } else {
+                    throw new Error('Desencriptación fallida');
+                }
+            } catch (error) {
+                statusElement.textContent = 'Error: Contraseña incorrecta o contenido inválido.';
+                decryptedContentElement.textContent = '';
+            }
+        }
+    </script>
+
+
+</body></html>
