@@ -130,7 +130,7 @@
             if (getFileResponse.ok) {
                 const fileData = await getFileResponse.json();
                 
-                // Decodificar el contenido del archivo desde el campo `content`
+                // Extraer solo el contenido base64 del campo `content`
                 const contentBase64 = fileData.content;
                 const content = atob(contentBase64); // Decodificar base64
 
