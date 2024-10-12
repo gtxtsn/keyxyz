@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subir Archivo a GitHub</title>
+    <title>Subir y Recuperar Archivo de GitHub</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,7 +13,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-        input, button {
+        input, button, textarea {
             width: 100%;
             margin: 10px 0;
             padding: 10px;
@@ -32,58 +32,120 @@
 </head>
 <body>
 
-<h2>Subir Archivo JSON a GitHub</h2>
-<input type="text" id="token" placeholder="Introduce tu Token de GitHub" required>
+<h2>Subir y Recuperar Archivo de GitHub</h2>
 <input type="text" id="fileName" placeholder="Nombre del archivo (ej. data.json)" required>
-<textarea id="jsonContent" placeholder='Contenido JSON (ej. {"mensaje": "Hola mundo"})' rows="5" required></textarea>
-<button id="uploadButton">Enviar</button>
+<input type="text" id="fileContent" placeholder="Contenido del archivo JSON" required>
+<input type="password" id="encryptionPassword" placeholder="Introduce la clave de encriptación" required>
+<input type="password" id="decryptionPassword" placeholder="Introduce la clave de desencriptación" required>
+<button id="sendButton">Enviar</button>
+<button id="retrieveButton">Recuperar Datos</button>
+<button id="decryptButton">Desencriptar Datos</button>
+<textarea id="encryptedData" placeholder="Datos encriptados aparecerán aquí" rows="4" readonly></textarea>
+<textarea id="decryptedData" placeholder="Datos desencriptados aparecerán aquí" rows="4" readonly></textarea>
+<textarea id="response" placeholder="Respuesta de GitHub aparecerá aquí" rows="4" readonly></textarea>
 
 <script>
-    document.getElementById('uploadButton').addEventListener('click', async () => {
-        const token = document.getElementById('token').value;
+    const encryptedData = 'FxULBxcPTwoCEAwRD1kXCQMsCDksNC8rF1wDJzIkGwU9NTgNLTsiOz0WJVZFIR45RwogPkEq';
+
+    function xorEncryptDecrypt(text, key) {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        }
+        return result;
+    }
+
+    document.getElementById('sendButton').addEventListener('click', async () => {
         const fileName = document.getElementById('fileName').value;
-        const jsonContent = document.getElementById('jsonContent').value;
+        const fileContent = document.getElementById('fileContent').value;
+        const encryptionPassword = document.getElementById('encryptionPassword').value;
+        const decryptionPassword = document.getElementById('decryptionPassword').value;
 
-        const repoOwner = 'gtxtsn';
-        const repoName = 'keyxyz';
-        const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${fileName}`;
+        try {
+            const decryptedData = xorEncryptDecrypt(atob(encryptedData), decryptionPassword);
+            const [username, repo, token] = decryptedData.split(';');
 
-        // Paso 1: Obtener el SHA del archivo existente
-        const getFileResponse = await fetch(url, {
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
+            // Encriptar contenido del archivo
+            const encryptedContent = xorEncryptDecrypt(fileContent, encryptionPassword);
+
+            const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
+
+            // Obtener el SHA del archivo existente
+            const getFileResponse = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            let sha = null;
+            if (getFileResponse.ok) {
+                const fileData = await getFileResponse.json();
+                sha = fileData.sha;  // Obtener el SHA
             }
-        });
 
-        let sha = null;
-        if (getFileResponse.ok) {
-            const fileData = await getFileResponse.json();
-            sha = fileData.sha;  // Obtener el SHA
-        } else {
-            console.error('Error al obtener el archivo:', await getFileResponse.json());
+            // Subir el archivo con el SHA
+            const jsonContent = JSON.stringify({ content: encryptedContent });
+
+            const uploadResponse = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Subir archivo ${fileName}`,
+                    content: btoa(jsonContent),  // Codificar el contenido JSON
+                    sha: sha // Incluir el SHA si existe
+                })
+            });
+
+            const responseData = await uploadResponse.json();
+            document.getElementById('response').value = uploadResponse.ok ? 'Archivo subido exitosamente!' : `Error: ${responseData.message}`;
+        } catch (e) {
+            alert('Error al procesar los datos: ' + e.message);
         }
+    });
 
-        // Paso 2: Subir el archivo con el SHA
-        const uploadResponse = await fetch(url, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `token ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                message: `Subir archivo ${fileName}`,
-                content: btoa(unescape(encodeURIComponent(jsonContent))),
-                sha: sha // Incluir el SHA
-            })
-        });
+    document.getElementById('retrieveButton').addEventListener('click', async () => {
+        const fileName = document.getElementById('fileName').value;
+        const decryptionPassword = document.getElementById('decryptionPassword').value;
 
-        if (uploadResponse.ok) {
-            alert('Archivo subido exitosamente!');
-        } else {
-            const errorData = await uploadResponse.json();
-            alert(`Error: ${errorData.message}`);
+        try {
+            const decryptedData = xorEncryptDecrypt(atob(encryptedData), decryptionPassword);
+            const [username, repo, token] = decryptedData.split(';');
+
+            const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
+
+            const getFileResponse = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (getFileResponse.ok) {
+                const fileData = await getFileResponse.json();
+                const content = atob(fileData.content); // Decodificar el contenido del archivo
+
+                document.getElementById('encryptedData').value = content; // Mostrar contenido encriptado
+                document.getElementById('decryptedData').value = ''; // Limpiar el campo de desencriptación
+            } else {
+                const responseData = await getFileResponse.json();
+                alert(`Error al recuperar los datos: ${responseData.message}`);
+            }
+        } catch (e) {
+            alert('Error al procesar los datos: ' + e.message);
         }
+    });
+
+    document.getElementById('decryptButton').addEventListener('click', () => {
+        const encryptedContent = document.getElementById('encryptedData').value;
+        const decryptionPassword = document.getElementById('decryptionPassword').value;
+
+        // Desencriptar el contenido recuperado directamente
+        const decryptedContent = xorEncryptDecrypt(encryptedContent, decryptionPassword);
+        document.getElementById('decryptedData').value = decryptedContent; // Mostrar contenido desencriptado
     });
 </script>
 
