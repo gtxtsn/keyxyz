@@ -29,8 +29,10 @@
             background-color: #218838;
         }
         #response {
+            margin-top: 20px;
             padding: 10px;
             border-radius: 5px;
+            min-height: 40px;
         }
     </style>
 </head>
@@ -79,39 +81,11 @@
         return `${day}${month}${year}${hours}${minutes}`;
     }
 
-    // Función para verificar si un archivo ya existe y autoincrementar el nombre
-    async function getIncrementedFileName(fileName, repoUrl, token) {
-        let counter = 0;
-        let newFileName = fileName;
-
-        while (true) {
-            const url = `${repoUrl}/${newFileName}.json`;
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (!response.ok) {
-                // Archivo no existe, salir del bucle
-                return `${newFileName}.json`;
-            }
-
-            // Incrementar el nombre
-            counter++;
-            newFileName = `${fileName}${counter}`;
-        }
-    }
-
     // Función para mostrar mensajes en el div response con colores
     function displayMessage(message, success = true) {
         const responseElement = document.getElementById('response');
-        if (success) {
-            responseElement.style.backgroundColor = '#ccffcc'; // Verde pastel suave
-        } else {
-            responseElement.style.backgroundColor = '#ffcccc'; // Rojo pastel suave
-        }
+        responseElement.style.display = 'block';
+        responseElement.style.backgroundColor = success ? '#ccffcc' : '#ffcccc'; // Verde pastel para éxito, rojo pastel para error
         responseElement.textContent = message;
     }
 
@@ -136,13 +110,10 @@
             const timeTag = getTimeTag();
             const dataWithTimeTag = `${timeTag} - ${fileContent}`;
 
-            // Verificar si el archivo existe y autoincrementar el nombre si es necesario
-            const finalFileName = await getIncrementedFileName(fileName, repoUrl, token);
-
             // Encriptar el contenido del archivo usando AES-256
             const encryptedContent = encryptAES(dataWithTimeTag, encryptionPassword);
 
-            const url = `${repoUrl}/${finalFileName}`;
+            const url = `${repoUrl}/${fileName}.json`;
 
             // Subir el archivo con el SHA
             const uploadResponse = await fetch(url, {
@@ -152,7 +123,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    message: `Subir archivo ${finalFileName}`,
+                    message: `Subir archivo ${fileName}.json`,
                     content: btoa(encryptedContent),  // Codificar el contenido encriptado en base64
                 })
             });
@@ -160,11 +131,7 @@
             const responseData = await uploadResponse.json();
             
             if (uploadResponse.ok) {
-                let successMessage = `Archivo ${finalFileName} subido exitosamente!`;
-                if (finalFileName !== `${fileName}.json`) {
-                    successMessage += ` El archivo original ya existía, se creó ${finalFileName}.`;
-                }
-                displayMessage(successMessage, true);
+                displayMessage(`Archivo ${fileName}.json subido exitosamente!`, true);
             } else {
                 displayMessage(`Error: ${responseData.message}`, false);
             }
@@ -211,4 +178,25 @@
                 displayMessage(`Error al recuperar los datos: ${responseData.message}`, false);
             }
         } catch (e) {
-            displayMessage('Error al procesar
+            displayMessage('Error al procesar los datos: ' + e.message, false);
+        }
+    });
+
+    document.getElementById('decryptButton').addEventListener('click', () => {
+        const encryptedContent = document.getElementById('encryptedData').value;
+        const encryptionPassword = document.getElementById('encryptionPassword').value;
+
+        if (!encryptedContent || !encryptionPassword) {
+            displayMessage("Por favor ingresa los datos y la contraseña", false);
+            return;
+        }
+
+        // Desencriptar el contenido recuperado usando AES-256
+        const decryptedContent = decryptAES(encryptedContent, encryptionPassword);
+        document.getElementById('decryptedData').value = decryptedContent; // Mostrar contenido desencriptado
+        displayMessage('Datos desencriptados correctamente', true);
+    });
+</script>
+
+</body>
+</html>
