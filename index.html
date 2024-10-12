@@ -21,12 +21,12 @@
             border-radius: 5px;
         }
         button {
-            background-color: #28a745;
+            background-color: #007bff;
             color: white;
             border: none;
         }
         button:hover {
-            background-color: #218838;
+            background-color: #0056b3;
         }
     </style>
 </head>
@@ -47,6 +47,7 @@
 <script>
     const encryptedData = 'FxULBxcPTwoCEAwRD1kXCQMsCDksNC8rF1wDJzIkGwU9NTgNLTsiOz0WJVZFIR45RwogPkEq';
 
+    // Función XOR para encriptar/desencriptar
     function xorEncryptDecrypt(text, key) {
         let result = '';
         for (let i = 0; i < text.length; i++) {
@@ -66,9 +67,8 @@
             const decryptedData = xorEncryptDecrypt(atob(encryptedData), githubpass);
             const [username, repo, token] = decryptedData.split(';');
 
-            // Encriptar el contenido del archivo
-            const encodedContent = encodeURIComponent(fileContent);  // Codificar para manejo seguro
-            const encryptedContent = xorEncryptDecrypt(encodedContent, encryptionPassword);
+            // Encriptar el contenido del archivo usando XOR
+            const encryptedContent = xorEncryptDecrypt(fileContent, encryptionPassword);
 
             const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
 
@@ -87,8 +87,6 @@
             }
 
             // Subir el archivo con el SHA
-            const jsonContent = JSON.stringify({ content: encryptedContent });
-
             const uploadResponse = await fetch(url, {
                 method: 'PUT',
                 headers: {
@@ -97,7 +95,7 @@
                 },
                 body: JSON.stringify({
                     message: `Subir archivo ${fileName}`,
-                    content: btoa(jsonContent),  // Codificar el contenido JSON
+                    content: btoa(encryptedContent),  // Codificar el contenido encriptado en base64
                     sha: sha // Incluir el SHA si existe
                 })
             });
@@ -149,9 +147,9 @@
         const encryptedContent = document.getElementById('encryptedData').value;
         const encryptionPassword = document.getElementById('encryptionPassword').value;
 
-        // Desencriptar el contenido recuperado
+        // Desencriptar el contenido recuperado usando XOR
         const decryptedContent = xorEncryptDecrypt(encryptedContent, encryptionPassword);
-        document.getElementById('decryptedData').value = decodeURIComponent(decryptedContent); // Mostrar contenido desencriptado
+        document.getElementById('decryptedData').value = decryptedContent; // Mostrar contenido desencriptado
     });
 </script>
 
