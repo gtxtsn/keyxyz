@@ -1,3 +1,8 @@
+Entiendo que el código no está funcionando como esperabas al intentar subir el archivo, desencriptarlo o recuperarlo. Vamos a revisar y ajustar el flujo del código para asegurarnos de que funcione correctamente. Aquí te presento una versión refinada con más manejo de errores y algunas correcciones:
+
+### Actualización del código:
+
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -104,11 +109,27 @@
         }
     }
 
+    // Función para mostrar mensajes en el div response con colores
+    function displayMessage(message, success = true) {
+        const responseElement = document.getElementById('response');
+        if (success) {
+            responseElement.style.backgroundColor = '#ccffcc'; // Verde pastel suave
+        } else {
+            responseElement.style.backgroundColor = '#ffcccc'; // Rojo pastel suave
+        }
+        responseElement.textContent = message;
+    }
+
     document.getElementById('sendButton').addEventListener('click', async () => {
         let fileName = document.getElementById('fileName').value;
         const fileContent = document.getElementById('fileContent').value;
         const encryptionPassword = document.getElementById('encryptionPassword').value;
         const githubpass = document.getElementById('githubpass').value;
+
+        if (!fileName || !fileContent || !encryptionPassword || !githubpass) {
+            displayMessage("Por favor completa todos los campos", false);
+            return;
+        }
 
         try {
             // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
@@ -128,20 +149,6 @@
 
             const url = `${repoUrl}/${finalFileName}`;
 
-            // Obtener el SHA del archivo existente
-            const getFileResponse = await fetch(url, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            let sha = null;
-            if (getFileResponse.ok) {
-                const fileData = await getFileResponse.json();
-                sha = fileData.sha;  // Obtener el SHA
-            }
-
             // Subir el archivo con el SHA
             const uploadResponse = await fetch(url, {
                 method: 'PUT',
@@ -152,23 +159,61 @@
                 body: JSON.stringify({
                     message: `Subir archivo ${finalFileName}`,
                     content: btoa(encryptedContent),  // Codificar el contenido encriptado en base64
-                    sha: sha // Incluir el SHA si existe
                 })
             });
 
             const responseData = await uploadResponse.json();
-            const responseElement = document.getElementById('response');
             
             if (uploadResponse.ok) {
-                responseElement.style.backgroundColor = '#ccffcc'; // Verde pastel suave
-                responseElement.textContent = `Archivo ${finalFileName} subido exitosamente!`;
+                let successMessage = `Archivo ${finalFileName} subido exitosamente!`;
                 if (finalFileName !== `${fileName}.json`) {
-                    responseElement.textContent += ` El archivo original ya existía, se creó ${finalFileName}.`;
+                    successMessage += ` El archivo original ya existía, se creó ${finalFileName}.`;
                 }
+                displayMessage(successMessage, true);
             } else {
-                responseElement.style.backgroundColor = '#ffcccc'; // Rojo pastel suave
-                responseElement.textContent = `Error: ${responseData.message}`;
+                displayMessage(`Error: ${responseData.message}`, false);
             }
         } catch (e) {
-            const responseElement = document.getElementById('response');
-            responseElement.style.
+            displayMessage('Error al procesar los datos: ' + e.message, false);
+        }
+    });
+
+    document.getElementById('retrieveButton').addEventListener('click', async () => {
+        let fileName = document.getElementById('fileName').value;
+        const githubpass = document.getElementById('githubpass').value;
+
+        if (!fileName || !githubpass) {
+            displayMessage("Por favor completa todos los campos", false);
+            return;
+        }
+
+        try {
+            // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
+            const decryptedData = decryptAES(encryptedData, githubpass);
+            const [username, repo, token] = decryptedData.split(';');
+
+            const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}.json`;
+
+            const getFileResponse = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (getFileResponse.ok) {
+                const fileData = await getFileResponse.json();
+                
+                // Extraer solo el contenido base64 del campo `content`
+                const contentBase64 = fileData.content;
+                const content = atob(contentBase64); // Decodificar base64
+
+                document.getElementById('encryptedData').value = content; // Mostrar contenido encriptado
+                document.getElementById('decryptedData').value = ''; // Limpiar el campo de desencriptación
+                displayMessage(`Archivo ${fileName}.json recuperado correctamente.`, true);
+            } else {
+                const responseData = await getFileResponse.json();
+                displayMessage(`Error al recuperar los datos: ${responseData.message}`, false);
+            }
+        } catch (e) {
+            displayMessage('Error al procesar
