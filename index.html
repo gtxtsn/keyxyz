@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subir y Recuperar Archivo de GitHub</title>
+    <title>Subir y Recuperar Archivo de GitHub con AES-256</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
             padding: 20px;
-            max-width: 400px;
+            max-width: 500px;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
@@ -21,22 +21,22 @@
             border-radius: 5px;
         }
         button {
-            background-color: #007bff;
+            background-color: #28a745;
             color: white;
             border: none;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #218838;
         }
     </style>
 </head>
 <body>
 
 <h2>Subir y Recuperar Archivo de GitHub</h2>
-<input type="text" id="fileName" placeholder="Nombre del archivo (ej. data.json)" required>
-<input type="text" id="fileContent" placeholder="Contenido del archivo JSON" required>
-<input type="password" id="encryptionPassword" placeholder="Introduce la clave de encriptación" required>
-<input type="password" id="githubpass" placeholder="Introduce la clave de GitHub" required>
+<textarea id="fileName" placeholder="Nombre del archivo (ej. data.json)"></textarea>
+<textarea id="fileContent" placeholder="Contenido del archivo JSON"></textarea>
+<input type="password" id="encryptionPassword" placeholder="Introduce la clave de encriptación">
+<input type="password" id="githubpass" placeholder="Introduce la clave de GitHub">
 <button id="sendButton">Enviar</button>
 <button id="retrieveButton">Recuperar Datos</button>
 <button id="decryptButton">Desencriptar Datos</button>
@@ -44,16 +44,24 @@
 <textarea id="decryptedData" placeholder="Datos desencriptados aparecerán aquí" rows="4" readonly></textarea>
 <textarea id="response" placeholder="Respuesta de GitHub aparecerá aquí" rows="4" readonly></textarea>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
-    const encryptedData = 'FxULBxcPTwoCEAwRD1kXCQMsCDksNC8rF1wDJzIkGwU9NTgNLTsiOz0WJVZFIR45RwogPkEq';
+    // Data de GitHub encriptada en AES-256
+    const encryptedData = 'U2FsdGVkX19D9Ylq7ZALj8RxCLvIjsuMDdV4o+iSS0INDi0oRa96pFwALd6EDxJhrx1rmZi/dRc25krtQnPwA0Q+m3Rcb78iccPUj0kHZNU=';
 
-    // Función XOR para encriptar/desencriptar
-    function xorEncryptDecrypt(text, key) {
-        let result = '';
-        for (let i = 0; i < text.length; i++) {
-            result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    // Función para encriptar con AES-256
+    function encryptAES(text, password) {
+        return CryptoJS.AES.encrypt(text, password).toString();
+    }
+
+    // Función para desencriptar con AES-256
+    function decryptAES(cipherText, password) {
+        try {
+            const bytes = CryptoJS.AES.decrypt(cipherText, password);
+            return bytes.toString(CryptoJS.enc.Utf8);
+        } catch (e) {
+            return "Error: Contraseña incorrecta o texto inválido";
         }
-        return result;
     }
 
     document.getElementById('sendButton').addEventListener('click', async () => {
@@ -63,12 +71,12 @@
         const githubpass = document.getElementById('githubpass').value;
 
         try {
-            // Usar githubpass para desencriptar los datos de GitHub (repositorio, usuario y token)
-            const decryptedData = xorEncryptDecrypt(atob(encryptedData), githubpass);
+            // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
+            const decryptedData = decryptAES(encryptedData, githubpass);
             const [username, repo, token] = decryptedData.split(';');
 
-            // Encriptar el contenido del archivo usando XOR
-            const encryptedContent = xorEncryptDecrypt(fileContent, encryptionPassword);
+            // Encriptar el contenido del archivo usando AES-256
+            const encryptedContent = encryptAES(fileContent, encryptionPassword);
 
             const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
 
@@ -112,8 +120,8 @@
         const githubpass = document.getElementById('githubpass').value;
 
         try {
-            // Usar githubpass para desencriptar los datos de GitHub (repositorio, usuario y token)
-            const decryptedData = xorEncryptDecrypt(atob(encryptedData), githubpass);
+            // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
+            const decryptedData = decryptAES(encryptedData, githubpass);
             const [username, repo, token] = decryptedData.split(';');
 
             const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
@@ -147,8 +155,8 @@
         const encryptedContent = document.getElementById('encryptedData').value;
         const encryptionPassword = document.getElementById('encryptionPassword').value;
 
-        // Desencriptar el contenido recuperado usando XOR
-        const decryptedContent = xorEncryptDecrypt(encryptedContent, encryptionPassword);
+        // Desencriptar el contenido recuperado usando AES-256
+        const decryptedContent = decryptAES(encryptedContent, encryptionPassword);
         document.getElementById('decryptedData').value = decryptedContent; // Mostrar contenido desencriptado
     });
 </script>
