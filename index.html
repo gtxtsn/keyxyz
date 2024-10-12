@@ -66,7 +66,8 @@
             const [username, repo, token] = decryptedData.split(';');
 
             // Encriptar contenido del archivo
-            const encryptedContent = xorEncryptDecrypt(fileContent, encryptionPassword);
+            const encodedContent = encodeURIComponent(fileContent);  // Codificar para manejo seguro
+            const encryptedContent = xorEncryptDecrypt(encodedContent, encryptionPassword);
 
             const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
 
@@ -145,7 +146,7 @@
 
         // Desencriptar el contenido recuperado directamente
         const decryptedContent = xorEncryptDecrypt(encryptedContent, decryptionPassword);
-        document.getElementById('decryptedData').value = decryptedContent; // Mostrar contenido desencriptado
+        document.getElementById('decryptedData').value = decodeURIComponent(decryptedContent); // Mostrar contenido desencriptado
     });
 </script>
 
