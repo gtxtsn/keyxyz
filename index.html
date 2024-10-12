@@ -28,12 +28,16 @@
         button:hover {
             background-color: #218838;
         }
+        #response {
+            padding: 10px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
 
 <h2>Subir y Recuperar Archivo de GitHub</h2>
-<textarea id="fileName" placeholder="Nombre del archivo (ej. data.json)"></textarea>
+<textarea id="fileName" placeholder="Nombre del archivo (sin extensión)"></textarea>
 <textarea id="fileContent" placeholder="Contenido del archivo JSON"></textarea>
 <input type="password" id="encryptionPassword" placeholder="Introduce la clave de encriptación">
 <input type="password" id="githubpass" placeholder="Introduce la clave de GitHub">
@@ -42,7 +46,7 @@
 <button id="decryptButton">Desencriptar Datos</button>
 <textarea id="encryptedData" placeholder="Datos encriptados aparecerán aquí" rows="4" readonly></textarea>
 <textarea id="decryptedData" placeholder="Datos desencriptados aparecerán aquí" rows="4" readonly></textarea>
-<textarea id="response" placeholder="Respuesta de GitHub aparecerá aquí" rows="4" readonly></textarea>
+<div id="response" placeholder="Respuesta de GitHub aparecerá aquí"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
@@ -65,10 +69,15 @@
     }
 
     document.getElementById('sendButton').addEventListener('click', async () => {
-        const fileName = document.getElementById('fileName').value;
+        let fileName = document.getElementById('fileName').value;
         const fileContent = document.getElementById('fileContent').value;
         const encryptionPassword = document.getElementById('encryptionPassword').value;
         const githubpass = document.getElementById('githubpass').value;
+
+        // Añadir automáticamente la extensión .json si no está presente
+        if (!fileName.endsWith(".json")) {
+            fileName += ".json";
+        }
 
         try {
             // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
@@ -109,15 +118,30 @@
             });
 
             const responseData = await uploadResponse.json();
-            document.getElementById('response').value = uploadResponse.ok ? 'Archivo subido exitosamente!' : `Error: ${responseData.message}`;
+            const responseElement = document.getElementById('response');
+            
+            if (uploadResponse.ok) {
+                responseElement.style.backgroundColor = '#ccffcc'; // Verde pastel suave
+                responseElement.textContent = 'Archivo subido exitosamente!';
+            } else {
+                responseElement.style.backgroundColor = '#ffcccc'; // Rojo pastel suave
+                responseElement.textContent = `Error: ${responseData.message}`;
+            }
         } catch (e) {
-            alert('Error al procesar los datos: ' + e.message);
+            const responseElement = document.getElementById('response');
+            responseElement.style.backgroundColor = '#ffcccc'; // Rojo pastel suave
+            responseElement.textContent = 'Error al procesar los datos: ' + e.message;
         }
     });
 
     document.getElementById('retrieveButton').addEventListener('click', async () => {
-        const fileName = document.getElementById('fileName').value;
+        let fileName = document.getElementById('fileName').value;
         const githubpass = document.getElementById('githubpass').value;
+
+        // Añadir automáticamente la extensión .json si no está presente
+        if (!fileName.endsWith(".json")) {
+            fileName += ".json";
+        }
 
         try {
             // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
