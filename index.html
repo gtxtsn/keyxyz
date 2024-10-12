@@ -36,7 +36,7 @@
 <input type="text" id="fileName" placeholder="Nombre del archivo (ej. data.json)" required>
 <input type="text" id="fileContent" placeholder="Contenido del archivo JSON" required>
 <input type="password" id="encryptionPassword" placeholder="Introduce la clave de encriptación" required>
-<input type="password" id="decryptionPassword" placeholder="Introduce la clave de desencriptación" required>
+<input type="password" id="githubpass" placeholder="Introduce la clave de GitHub" required>
 <button id="sendButton">Enviar</button>
 <button id="retrieveButton">Recuperar Datos</button>
 <button id="decryptButton">Desencriptar Datos</button>
@@ -59,13 +59,14 @@
         const fileName = document.getElementById('fileName').value;
         const fileContent = document.getElementById('fileContent').value;
         const encryptionPassword = document.getElementById('encryptionPassword').value;
-        const decryptionPassword = document.getElementById('decryptionPassword').value;
+        const githubpass = document.getElementById('githubpass').value;
 
         try {
-            const decryptedData = xorEncryptDecrypt(atob(encryptedData), decryptionPassword);
+            // Usar githubpass para desencriptar los datos de GitHub (repositorio, usuario y token)
+            const decryptedData = xorEncryptDecrypt(atob(encryptedData), githubpass);
             const [username, repo, token] = decryptedData.split(';');
 
-            // Encriptar contenido del archivo
+            // Encriptar el contenido del archivo
             const encodedContent = encodeURIComponent(fileContent);  // Codificar para manejo seguro
             const encryptedContent = xorEncryptDecrypt(encodedContent, encryptionPassword);
 
@@ -110,10 +111,11 @@
 
     document.getElementById('retrieveButton').addEventListener('click', async () => {
         const fileName = document.getElementById('fileName').value;
-        const decryptionPassword = document.getElementById('decryptionPassword').value;
+        const githubpass = document.getElementById('githubpass').value;
 
         try {
-            const decryptedData = xorEncryptDecrypt(atob(encryptedData), decryptionPassword);
+            // Usar githubpass para desencriptar los datos de GitHub (repositorio, usuario y token)
+            const decryptedData = xorEncryptDecrypt(atob(encryptedData), githubpass);
             const [username, repo, token] = decryptedData.split(';');
 
             const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
@@ -145,10 +147,10 @@
 
     document.getElementById('decryptButton').addEventListener('click', () => {
         const encryptedContent = document.getElementById('encryptedData').value;
-        const decryptionPassword = document.getElementById('decryptionPassword').value;
+        const encryptionPassword = document.getElementById('encryptionPassword').value;
 
         // Desencriptar el contenido recuperado
-        const decryptedContent = xorEncryptDecrypt(encryptedContent, decryptionPassword);
+        const decryptedContent = xorEncryptDecrypt(encryptedContent, encryptionPassword);
         document.getElementById('decryptedData').value = decodeURIComponent(decryptedContent); // Mostrar contenido desencriptado
     });
 </script>
