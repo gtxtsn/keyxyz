@@ -68,26 +68,65 @@
         }
     }
 
+    // Función para obtener el timetag en formato ddmmyyhhmm
+    function getTimeTag() {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0'); // Mes empieza desde 0
+        const year = String(now.getFullYear()).slice(-2);
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${day}${month}${year}${hours}${minutes}`;
+    }
+
+    // Función para verificar si un archivo ya existe y autoincrementar el nombre
+    async function getIncrementedFileName(fileName, repoUrl, token) {
+        let counter = 0;
+        let newFileName = fileName;
+
+        while (true) {
+            const url = `${repoUrl}/${newFileName}.json`;
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (!response.ok) {
+                // Archivo no existe, salir del bucle
+                return `${newFileName}.json`;
+            }
+
+            // Incrementar el nombre
+            counter++;
+            newFileName = `${fileName}${counter}`;
+        }
+    }
+
     document.getElementById('sendButton').addEventListener('click', async () => {
         let fileName = document.getElementById('fileName').value;
         const fileContent = document.getElementById('fileContent').value;
         const encryptionPassword = document.getElementById('encryptionPassword').value;
         const githubpass = document.getElementById('githubpass').value;
 
-        // Añadir automáticamente la extensión .json si no está presente
-        if (!fileName.endsWith(".json")) {
-            fileName += ".json";
-        }
-
         try {
             // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
             const decryptedData = decryptAES(encryptedData, githubpass);
             const [username, repo, token] = decryptedData.split(';');
+            const repoUrl = `https://api.github.com/repos/${username}/${repo}/contents`;
+
+            // Agregar el timetag a los datos
+            const timeTag = getTimeTag();
+            const dataWithTimeTag = `${timeTag} - ${fileContent}`;
+
+            // Verificar si el archivo existe y autoincrementar el nombre si es necesario
+            const finalFileName = await getIncrementedFileName(fileName, repoUrl, token);
 
             // Encriptar el contenido del archivo usando AES-256
-            const encryptedContent = encryptAES(fileContent, encryptionPassword);
+            const encryptedContent = encryptAES(dataWithTimeTag, encryptionPassword);
 
-            const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
+            const url = `${repoUrl}/${finalFileName}`;
 
             // Obtener el SHA del archivo existente
             const getFileResponse = await fetch(url, {
@@ -111,7 +150,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    message: `Subir archivo ${fileName}`,
+                    message: `Subir archivo ${finalFileName}`,
                     content: btoa(encryptedContent),  // Codificar el contenido encriptado en base64
                     sha: sha // Incluir el SHA si existe
                 })
@@ -122,68 +161,14 @@
             
             if (uploadResponse.ok) {
                 responseElement.style.backgroundColor = '#ccffcc'; // Verde pastel suave
-                responseElement.textContent = 'Archivo subido exitosamente!';
+                responseElement.textContent = `Archivo ${finalFileName} subido exitosamente!`;
+                if (finalFileName !== `${fileName}.json`) {
+                    responseElement.textContent += ` El archivo original ya existía, se creó ${finalFileName}.`;
+                }
             } else {
                 responseElement.style.backgroundColor = '#ffcccc'; // Rojo pastel suave
                 responseElement.textContent = `Error: ${responseData.message}`;
             }
         } catch (e) {
             const responseElement = document.getElementById('response');
-            responseElement.style.backgroundColor = '#ffcccc'; // Rojo pastel suave
-            responseElement.textContent = 'Error al procesar los datos: ' + e.message;
-        }
-    });
-
-    document.getElementById('retrieveButton').addEventListener('click', async () => {
-        let fileName = document.getElementById('fileName').value;
-        const githubpass = document.getElementById('githubpass').value;
-
-        // Añadir automáticamente la extensión .json si no está presente
-        if (!fileName.endsWith(".json")) {
-            fileName += ".json";
-        }
-
-        try {
-            // Desencriptar los datos de GitHub (repositorio, usuario y token) usando AES-256
-            const decryptedData = decryptAES(encryptedData, githubpass);
-            const [username, repo, token] = decryptedData.split(';');
-
-            const url = `https://api.github.com/repos/${username}/${repo}/contents/${fileName}`;
-
-            const getFileResponse = await fetch(url, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (getFileResponse.ok) {
-                const fileData = await getFileResponse.json();
-                
-                // Extraer solo el contenido base64 del campo `content`
-                const contentBase64 = fileData.content;
-                const content = atob(contentBase64); // Decodificar base64
-
-                document.getElementById('encryptedData').value = content; // Mostrar contenido encriptado
-                document.getElementById('decryptedData').value = ''; // Limpiar el campo de desencriptación
-            } else {
-                const responseData = await getFileResponse.json();
-                alert(`Error al recuperar los datos: ${responseData.message}`);
-            }
-        } catch (e) {
-            alert('Error al procesar los datos: ' + e.message);
-        }
-    });
-
-    document.getElementById('decryptButton').addEventListener('click', () => {
-        const encryptedContent = document.getElementById('encryptedData').value;
-        const encryptionPassword = document.getElementById('encryptionPassword').value;
-
-        // Desencriptar el contenido recuperado usando AES-256
-        const decryptedContent = decryptAES(encryptedContent, encryptionPassword);
-        document.getElementById('decryptedData').value = decryptedContent; // Mostrar contenido desencriptado
-    });
-</script>
-
-</body>
-</html>
+            responseElement.style.
